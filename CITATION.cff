@@ -1,0 +1,44 @@
+cff-version: 1.2.0
+title: Commensuration torques in double-moir´e twisted trilayer hexagonal boron nitride and graphene heterostructures
+message: "If you use this repository, please cite the associated publication."
+date-released: 2026-05-25
+repository-code: "https://github.com/gjung-group/Torques_Multisystem"
+license: MIT
+
+authors:
+  - family-names: Park
+    given-names: Youngju
+  - family-names: Jharapla
+    given-names: Prathap Kumar
+  - family-names: Leconte
+    given-names: Nicolas
+  - family-names: Shaifullah
+    given-names: Md
+  - family-names: Hwang
+    given-names: E. H.
+  - family-names: Jung
+    given-names: Jeil
+
+preferred-citation:
+  type: article
+  title: Geometric control of the twist angle in moiré heterobilayer flakes
+  authors:
+    - family-names: Park
+      given-names: Youngju
+    - family-names: Jharapla
+      given-names: Prathap Kumar
+    - family-names: Leconte
+      given-names: Nicolas
+    - family-names: Shaifullah
+      given-names: Md
+    - family-names: Hwang
+      given-names: E. H.
+    - family-names: Jung
+      given-names: Jeil
+  # Fill these in when available (or tell me and I'll update)
+  journal: ""
+  year: 2026
+  volume: ""
+  issue: ""
+  pages: ""
+  doi: ""
