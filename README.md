@@ -13,12 +13,11 @@ Fig2/
 Fig3/
 Fig4/
 FigS1/
-
 ```
 Each directory corresponds to the different figures presented in the manuscript and contains:
-   (i)   `Fig#/sources`  : the folder containing the data and scripts used to generate the figure,
-   (ii)  `Fig#/Fig#.key` : the keynote file which used to finalize the figure, and
-   (iii) `Fig#/Fig#.pdf` : the final PDF file.
+   - `Fig#/sources`  : the folder containing the data and scripts used to generate the figure,
+   - `Fig#/Fig#.key` : the keynote file which used to finalize the figure, and
+   - `Fig#/Fig#.pdf` : the final PDF file.
 
 ---
 
