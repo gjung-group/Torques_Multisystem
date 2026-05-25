@@ -8,10 +8,10 @@ license: MIT
 authors:
   - family-names: Park
     given-names: Youngju
-  - family-names: Jharapla
-    given-names: Prathap Kumar
   - family-names: Leconte
     given-names: Nicolas
+  - family-names: Jharapla
+    given-names: Prathap Kumar
   - family-names: Shaifullah
     given-names: Md
   - family-names: Hwang
@@ -25,10 +25,10 @@ preferred-citation:
   authors:
     - family-names: Park
       given-names: Youngju
-    - family-names: Jharapla
-      given-names: Prathap Kumar
     - family-names: Leconte
       given-names: Nicolas
+    - family-names: Jharapla
+      given-names: Prathap Kumar
     - family-names: Shaifullah
       given-names: Md
     - family-names: Hwang
