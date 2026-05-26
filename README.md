@@ -13,6 +13,7 @@ Fig2/
 Fig3/
 Fig4/
 FigS1/
+FigS2/
 ```
 Each directory corresponds to the different figures presented in the manuscript and contains:
    - `Fig#/sources`  : the folder containing the data and scripts used to generate the figure,
