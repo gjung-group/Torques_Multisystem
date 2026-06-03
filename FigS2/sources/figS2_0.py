@@ -52,46 +52,48 @@ ang32s_relax   , etots_relax     = data1[:,1] , (data1[:,-1]+E_correct)/(data1[:
 
 eref1 = etots_relax[0]
 
-fig      = plt.figure(figsize=(6,6))
+fig      = plt.figure(figsize=(6,4))
 msize, fsize = 4, 16
-ax1      = fig.add_axes([0.2, 0.58, 0.62, 0.35]) # for figsize=(6,6) two figures up and down
-ax2      = fig.add_axes([0.2, 0.1 , 0.62, 0.35])
 
-for datas, mcolor in zip([
+ax1        = fig.add_axes([0.15, 0.15, 0.7, 0.7]) # for the main figure
+ax1_inset  = fig.add_axes([0.25, 0.37, 0.18, 0.15]) # for the inset
+
+
+for icase, (datas, mcolor) in enumerate(zip([
     [ang32s_rigid   , etots_rigid    - eref1],
     [ang32s_rigidhBN, etots_rigidhBN - eref1],
-    [ang32s_relax   , etots_relax    - eref1]]
-    ["C0", "C1", "C2"]):
+    [ang32s_relax   , etots_relax    - eref1]],
+    ["C0", "C1", "C2"])):
 
     ax1.plot(datas[    0], datas[    1]*1000, 'o-' , lw=0.8, color=mcolor,ms=msize)#, alpha=0.3)
-
+    if icase==1: ax1_inset.plot(datas[    0], datas[    1]*1000, 'o-' , lw=0.8, color=mcolor,ms=msize)
     print('Emin (meV/atom)', np.min(datas[    1]*1000), 'at ', datas[0][np.argmin(datas[    1]*1000)])
- 
-ax2.plot(data4alat3[:,0], data4alat3[:,1], 'ko-', ms=msize)
-
-for ang_for_a3 in [-0.010739, 0.579824, 0.973401, 1.288158]:
-    ax1.axvline(x=ang_for_a3, ls='-', color=f'gray', alpha=0.5)
-    ax2.axvline(x=ang_for_a3, ls='-', color=f'gray', alpha=0.5)
-
-for a3 in np.linspace(2.4594, 2.4610, 5, endpoint=True):
-    ax2.axhline(y=a3, ls='-', color=f'gray', alpha=0.5)
+    if icase==1: print(datas[    0][np.argmin(datas[    1]*1000)], (datas[1][0]-datas[1][np.argmin(datas[1])])*1000)
 
     
 ax1.axhline(y=0, ls='-', color='gray', alpha=0.5)
+ax1.axhline(y=1.19, ls='-', lw=0.1, color='k')#, alpha=0.5)
+ax1.axhline(y=1.24, ls='-', lw=0.1, color='k')#, alpha=0.5)
+ax1.fill_between(np.linspace(-0.05,1.55, endpoint=True), 
+                 1.19, 1.24 , color='k', alpha=0.05)  # ax.fill_betweenx(y, x1, x2, color='k', alpha=0.3)
 
 ax1.set_xlabel("$\\theta_{32}\\ (^{\\circ}$)", fontsize=fsize, fontname='times')
 ax1.set_xlim(-0.05,1.55); ax1.set_xticks(np.linspace(0.0, 1.5,4, endpoint=True))
 ax1.set_ylim(-0.25,2); ax1.set_yticks(np.linspace(0,2, 5, endpoint=True))
-
-ax2.set_xlabel("$\\theta_{32}\\ (^{\\circ}$)", fontsize=fsize, fontname='times')
-ax2.set_xlim(-0.05,1.55); ax1.set_xticks(np.linspace(0.0, 1.5,4, endpoint=True))
-ax2.set_ylim(2.4592, 2.4612); ax2.set_yticks(np.linspace(2.4594, 2.4610, 5, endpoint=True))
-
 ax1.tick_params(labelsize=fsize) 
 ax1.set_ylabel("$E_{\\rm tot}$ (meV/atom)", fontsize=fsize, fontname='times')
 
-ax2.tick_params(labelsize=fsize) 
-ax2.set_ylabel("$|{\\bf a}_1^{(3)}|\\ \\AA$", fontsize=fsize, fontname='times')
+
+ax1_inset.axvline(x=0.697911, ls='-', color='gray', alpha=0.5)
+ax1_inset.set_xlim(-0.05,1.55)
+ax1_inset.set_xticks([0.0, 0.697911,1.5])
+ax1_inset.set_xticklabels([f"{ang:.1f}" for ang in [0.0, 0.697911,1.5]])
+ax1_inset.set_ylim(1.2,1.23); ax1_inset.set_yticks(np.linspace(1.2,1.23, 2, endpoint=True))
+ax1_inset.set_ylim(1.19,1.24); ax1_inset.set_yticks(np.linspace(1.19,1.24, 2, endpoint=True))
+ax1_inset.tick_params(labelsize=fsize) 
+ax1_inset.fill_between(np.linspace(-0.05,1.55, endpoint=True), 
+                 1.19, 1.24 , color='k', alpha=0.05)  # ax.fill_betweenx(y, x1, x2, color='k', alpha=0.3)
+
 
 fig.savefig(f"{datadir2write}figS2_0.pdf")
 
