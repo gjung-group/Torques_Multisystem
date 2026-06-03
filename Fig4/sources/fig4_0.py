@@ -20,7 +20,7 @@ fig_width   = 6.9 #6.9 # inches
 golden_mean = (np.sqrt(5)-1.0)/2.0    # Aesthetic ratio
 fig_height = fig_width*golden_mean*1 # height in inche
 fig = plt.figure(figsize=(fig_width, fig_height))
-msize, fsize = 3, 10
+msize, fsize = 2, 10
 
 gs0 = gridspec.GridSpec(2, 2, figure=fig, width_ratios=[1.2,1.6])
 gs0.update(wspace=0.4   , hspace=0.5) # set the spacing between axes.
@@ -78,12 +78,27 @@ for sysname, axs in zip(['GBNBN', 'GBNNB'],
 
 
 # ----- Panel (b) : ENERGY CURVE -----
+print("ENERGY CURVE:")
 axRs = [fig.add_subplot(gs0[i, 1]) for i in range(2)] 
 
 inds_GBNBN   = [[0,1, -3,-2,-1], # I
                [0,1,   -3,-2,-1]] # II
 inds_GBNNB   = [[0,1, -3,-2,-1],  # I
                 [0,1, -3,-2,-1]]     # II
+
+# ----- Added To estimate the corrections in the number of top-layer atoms and their energies
+data2adjust_typ1  = np.genfromtxt(f"{datadir2}Hermann_Indices_GBNBN_Typ1.txt", 
+                        skip_header=2, usecols=(0,1, 6,7, 10))  # (ang12, ang32, a", b", lambda_multiple)
+data2adjust_typ2  = np.genfromtxt(f"{datadir2}Hermann_Indices_GBNBN_Typ2.txt", 
+                        skip_header=2, usecols=(0,1, 6,7, 10))  # (ang12, ang32, a", b", lambda_multiple)
+data2adjusts      = [data2adjust_typ1, data2adjust_typ2]
+
+print(data2adjust_typ1, data2adjust_typ2)
+
+Emin_graphene = -7.3949972515997 ; print(f"Emin_graphene = {Emin_graphene:16.12f} eV/atom at 2.46019 \\AA")
+Emin_hBN      = -6.68997268334775; print(f"Emin_hBN      = {Emin_hBN:16.12f} eV/atom at 2.505759 \\AA")
+E_L3_ref      = Emin_graphene   # take the reference energy for the top-layer 
+
 
 for sysname, ax, mtype, stack_names, stack_names2, stack_names3, spl_inds, mcolors, th32_deg, th32_deg_2times in zip(
                             ['GBNBN', 'GBNNB'],
@@ -104,65 +119,152 @@ for sysname, ax, mtype, stack_names, stack_names2, stack_names3, spl_inds, mcolo
         alpha=0.5, lw=2,
         color='gray')
 
-    for stype, stype_name, mcolor, stack_name,stack_name2,stack_name3, spl_ind, th12_deg in zip(
+    for stype, stype_name, mcolor, stack_name,stack_name2,stack_name3, spl_ind, th12_deg, th32_deg_comm, data2adjust in zip(
                                 ["1", "2"],["Type I", "Type II"],
                                 mcolors, stack_names,stack_names2,stack_names3,spl_inds,
-                                [1.202325, -1.202855]):
+                                [1.202325, -1.202855],
+                                [0.579824,  0.579824],
+                                data2adjusts):
+        
         val = np.genfromtxt(f"{datadir2}energycurve_{sysname}_Typ{stype}.dat", skip_header=1)
-        ang32_degs, etots = val[:,1], val[:,-1]/val[:,2]
+        ang12_degs, ang32_degs = val[:,0], val[:,1] 
+
+        # --- Just to ensure to use the corresponding Hermann indices
+        data4corr0 = data2adjust[data2adjust[:,0]==th12_deg,:] 
+        data4corr  = []
+        for ang12, ang32 in zip(ang12_degs, ang32_degs):
+            cond2check = np.logical_and( np.isclose( data4corr0[:,0], ang12, atol=1e-4),
+                                         np.isclose( data4corr0[:,1], ang32, atol=1e-4) )
+            if np.sum(cond2check) == 1:
+                data4corr.append(data4corr0[cond2check,:].squeeze(axis=0))
+        data4corr = np.array(data4corr) 
+
+        # --- Number-of-atom correction
+        app, bpp          = data4corr[:,2], data4corr[:,3]
+        Natom_L3          = 2*(app**2 + app*bpp + bpp**2)
+        Natom_L3_ref      = Natom_L3[data4corr[:,1]==th32_deg_comm] 
+        lambda_ratio      = data4corr[:,-1]  # ratio between the simulation cell length with respect to their reference (double-moire commensurate)
+        Natom_corr        = (lambda_ratio**2) * Natom_L3_ref - Natom_L3
+        
+        # --- Energy correction
+        E_corr  = Natom_corr  * E_L3_ref 
+
+        # --- Total energy per atom with Correction
+        etots_wocorr = (val[:,-1])/(val[:,-3])
+        etots        = (val[:,-1]+E_corr)/(val[:,-3]+Natom_corr)
+        # ---------------------------------------------------
 
 
         ax.plot(ang32_degs, (etots-eref)*1000,mtype, ms= msize, color=mcolor, lw=0.5, label=f"{stype_name}  ( {stack_name} )") #, label="$\\theta_{12} = "+f"{th12_deg:.3f}"+"\\degree$ - "+f"{stack_name}")
 
+
         val_2 = np.genfromtxt(f"{datadir2}energycurve_{sysname}_Typ{stype}.{stack_name2}.dat", skip_header=1)
-        ang32_degs_2, etots_2 = val_2[:,1], val_2[:,-1]/val_2[:,2]
+        
+        ang12_degs_2, ang32_degs_2 = val_2[:,0], val_2[:,1]
+        data4corr0 = data2adjust[data2adjust[:,0]==th12_deg,:] 
+        data4corr_2 = []
+        for ang12, ang32 in zip(ang12_degs_2, ang32_degs_2):
+            cond2check = np.logical_and( np.isclose( data4corr0[:,0], ang12, atol=1e-4),
+                                         np.isclose( data4corr0[:,1], ang32, atol=1e-4) )
+            if np.sum(cond2check) == 1:
+                data4corr_2.append(data4corr0[cond2check,:].squeeze(axis=0))
+        data4corr_2 = np.array(data4corr_2) #;  print("data4corr.shape",data4corr.shape)
+
+        # --- Number-of-atom correction
+        app, bpp          = data4corr_2[:,2], data4corr_2[:,3]
+        Natom_L3          = 2*(app**2 + app*bpp + bpp**2)
+        Natom_L3_ref      = Natom_L3[data4corr_2[:,1]==th32_deg_comm] 
+        lambda_ratio      = data4corr_2[:,-1]  # ratio between the simulation cell length with respect to their reference (double-moire commensurate)
+        Natom_corr_2      = (lambda_ratio**2) * Natom_L3_ref - Natom_L3
+        
+        # --- Energy correction
+        E_corr_2 = Natom_corr_2 * E_L3_ref 
+
+        etots_2_wocorr = (val_2[:,-1])/(val_2[:,-3])
+        etots_2        = (val_2[:,-1]+E_corr_2)/(val_2[:,-3]+Natom_corr_2)
 
         val_3 = np.genfromtxt(f"{datadir2}energycurve_{sysname}_Typ{stype}.{stack_name3}.dat", skip_header=1)
-        ang32_degs_3, etots_3 = val_3[:,1], val_3[:,-1]/val_3[:,2]
+        
+        ang12_degs_3, ang32_degs_3 = val_3[:,0], val_3[:,1]
+        data4corr0 = data2adjust[data2adjust[:,0]==th12_deg,:] 
+        data4corr_3 = []
+        for ang12, ang32 in zip(ang12_degs_3, ang32_degs_3):
+            cond2check = np.logical_and( np.isclose( data4corr0[:,0], ang12, atol=1e-4),
+                                         np.isclose( data4corr0[:,1], ang32, atol=1e-4) )
+            if np.sum(cond2check) == 1:
+                data4corr_3.append(data4corr0[cond2check,:].squeeze(axis=0))
+        data4corr_3 = np.array(data4corr_3) #;  print("data4corr.shape",data4corr.shape)
 
+        # --- Number-of-atom correction
+        app, bpp          = data4corr_3[:,2], data4corr_3[:,3]
+        Natom_L3          = 2*(app**2 + app*bpp + bpp**2)
+        Natom_L3_ref      = Natom_L3[data4corr_3[:,1]==th32_deg_comm] 
+        lambda_ratio      = data4corr_3[:,-1]  # ratio between the simulation cell length with respect to their reference (double-moire commensurate)
+        Natom_corr_3      = (lambda_ratio**2) * Natom_L3_ref - Natom_L3
+        
+        # --- Energy correction
+        E_corr_3 = Natom_corr_3 * E_L3_ref 
+
+        etots_3_wocorr = (val_3[:,-1])/(val_3[:,-3])
+        etots_3        = (val_3[:,-1]+E_corr_3)/(val_3[:,-3]+Natom_corr_3)
+        
         # Fitting curves
-        etots_combined = etots.copy()
-        for ang32_2, etot_2 in zip(ang32_degs_2, etots_2):
+        etots_combined        = etots.copy()
+        etots_wocorr_combined = etots_wocorr.copy()
+        for ang32_2, etot_2, etot_2_wocorr in zip(ang32_degs_2, etots_2, etots_2_wocorr):
             ind_2 = list(ang32_degs).index(ang32_2)
             if etot_2 < etots_combined[ind_2]:
                 etots_combined[ind_2] = etot_2
-        for ang32_3, etot_3 in zip(ang32_degs_3, etots_3):
+            if etot_2_wocorr < etots_wocorr_combined[ind_2]:
+                etots_wocorr_combined[ind_2] = etot_2_wocorr
+        for ang32_3, etot_3, etot_3_wocorr in zip(ang32_degs_3, etots_3, etots_3_wocorr):
             ind_3 = list(ang32_degs).index(ang32_3)
             if etot_3 < etots_combined[ind_3]:
                 etots_combined[ind_3] = etot_3
+            if etot_3_wocorr < etots_wocorr_combined[ind_3]:
+                etots_wocorr_combined[ind_3] = etot_3_wocorr
 
-        angs_max, etots_max = ang32_degs_2.copy(), etots_2.copy()
-        for ang32_0, etot_0 in zip(ang32_degs, etots):
+        angs_max, etots_max, etots_max_wocorr = ang32_degs_2.copy(), etots_2.copy(), etots_2_wocorr.copy()
+        for ang32_0, etot_0, etot_0_wocorr in zip(ang32_degs, etots, etots_wocorr):
             try:
                 ind_0 = list(angs_max).index(ang32_0)
                 if etot_0 > etots_max[ind_0]:
                     etots_max[ind_0] = etot_0
+                if etot_0_wocorr > etots_max_wocorr[ind_0]:
+                    etots_max_wocorr[ind_0] = etot_0_wocorr
             except:
                 continue
-        for ang32_3, etot_3 in zip(ang32_degs_3, etots_3):
+        for ang32_3, etot_3, etot_3_wocorr in zip(ang32_degs_3, etots_3, etots_3_wocorr):
             try:
                 ind_3 = list(angs_max).index(ang32_3)
                 if etot_3 > etots_max[ind_3]:
                     etots_max[ind_3] = etot_3
+                if etot_3_wocorr > etots_max_wocorr[ind_3]:
+                    etots_max_wocorr[ind_3] = etot_3_wocorr
             except:
                 continue
 
-        angs_min, etots_min = ang32_degs_2.copy(), etots_2.copy()
-        for ang32_0, etot_0 in zip(ang32_degs, etots):
+        angs_min, etots_min, etots_min_wocorr = ang32_degs_2.copy(), etots_2.copy(), etots_2_wocorr.copy()
+        for ang32_0, etot_0, etot_0_wocorr in zip(ang32_degs, etots, etots_wocorr):
             try:
                 ind_0 = list(angs_min).index(ang32_0)
                 if etot_0 <= etots_min[ind_0]:
                     etots_min[ind_0] = etot_0
+                if etot_0_wocorr <= etots_min_wocorr[ind_0]:
+                    etots_min_wocorr[ind_0] = etot_0_wocorr
             except:
                 continue
-        for ang32_3, etot_3 in zip(ang32_degs_3, etots_3):
+        for ang32_3, etot_3, etot_3_wocorr in zip(ang32_degs_3, etots_3, etots_3_wocorr):
             try:
                 ind_3 = list(angs_min).index(ang32_3)
                 if etot_3 <= etots_min[ind_3]:
                     etots_min[ind_3] = etot_3
+                if etot_3_wocorr <= etots_min_wocorr[ind_3]:
+                    etots_min_wocorr[ind_3] = etot_3_wocorr
             except:
                 continue
         
+        # ax.plot(ang32_degs, (etots_wocorr_combined-eref)*1000,'*', marker=mtype, ms=msize, color=mcolor, alpha=0.5)#, label=f"{stype_name}  ( {stack_name} )") #, label="$\\theta_{12} = "+f"{th12_deg:.3f}"+"\\degree$ - "+f"{stack_name}")
         ax.plot(ang32_degs, (etots_combined-eref)*1000,'-', marker=mtype, ms=msize, color=mcolor, lw=0.5)#, label=f"{stype_name}  ( {stack_name} )") #, label="$\\theta_{12} = "+f"{th12_deg:.3f}"+"\\degree$ - "+f"{stack_name}")
 
 
@@ -179,7 +281,7 @@ for sysname, ax, mtype, stack_names, stack_names2, stack_names3, spl_inds, mcolo
         ax.fill_between(ang32_degs, (etots_combined-eref)*1000, (splev(ang32_degs,spl)-eref)*1000 , color=mcolor, alpha=0.3)  # ax.fill_betweenx(y, x1, x2, color='k', alpha=0.3)
 
         # print(fitted[0])
-
+        print(f"{sysname}_Typ{stype}_{th12_deg:.2f}")
         ind=list(ang32_degs).index(th32_deg)
         ang = ang32_degs
         val = (etots-eref)*1000
@@ -217,4 +319,3 @@ for sysname, ax, mtype, stack_names, stack_names2, stack_names3, spl_inds, mcolo
 
     
 fig.savefig(f"{datadir}fig4_0.pdf")
-fig.savefig(f"{datadir}fig4_0.png",dpi=300 )
