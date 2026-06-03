@@ -27,6 +27,7 @@ fig_height = fig_width*golden_mean*1.3 # height in inches
 
 fig = plt.figure(figsize=(fig_width, fig_height))
 msize, fsize = 3, 8
+msize, fsize = 2, 8
 
 gs0 = gridspec.GridSpec(2, 2, figure=fig, height_ratios=[1,2.4])
 gs0.update(wspace=0.3, hspace=0.4) # set the spacing between axes.
@@ -97,17 +98,21 @@ inds_BNGBN   = [[0,1,2,3,4,5,-4,-3,-2,-1],  # 0.54
                 [0,1,2,3,-6,-5,-4,-3,-2,-1],  # 1.08
                 [0,1,2,3,-5,-4,-3,-2,-1]]  # 1.62
 
-inds_GBNG    = [[0,3,-3,-2,-1], # 0.60
-                [0,1,2,3,-2,-1], # 1.28
-                [0,1,2,-2,-1]]   # 1.78
-inds_BNGNB   = [[0,1,2,3,-4,-3,-2,-1],  # 0.54
-                [0,1,2,3,-4,-3,-2,-1],  # 1.08
-                [0,1,2,3,-4,-3,-2,-1]]  # 1.62
-inds_BNGBN   = [[0,3,-3,-2,-1],  # 0.54
-                [0,1,2,-2,-1],  # 1.08
-                [0,1,2,3,-2,-1]]  # 1.62
 
-for stype, ax, mtype, stack_name, spl_inds, eref, th12_degs  in zip(['GBNG', 'BNGNB', 'BNGBN'],
+print("ENERGY CURVE:")
+# ----- Added To estimate the corrections in the number of top-layer atoms and their energies
+data2adjust_GBNG   = np.genfromtxt(f"{datadir2}Hermann_Indices_GBNG.txt", 
+                        skip_header=2, usecols=(0,1, 6,7, 10))  # (ang12, ang32, a", b", lambda_multiple)
+data2adjust_BNGBN  = np.genfromtxt(f"{datadir2}Hermann_Indices_BNGBN.txt", 
+                        skip_header=2, usecols=(0,1, 6,7, 10))  # (ang12, ang32, a", b", lambda_multiple)
+data2adjusts       = [data2adjust_GBNG, data2adjust_BNGBN, data2adjust_BNGBN]
+
+
+Emin_graphene = -7.3949972515997 ; print(f"Emin_graphene = {Emin_graphene:16.12f} eV/atom at 2.46019 \\AA")
+Emin_hBN      = -6.68997268334775; print(f"Emin_hBN      = {Emin_hBN:16.12f} eV/atom at 2.505759 \\AA")
+E_L3_refs     = [Emin_graphene, Emin_hBN, Emin_hBN]   # take the reference energy for the top-layer 
+
+for stype, ax, mtype, stack_name, spl_inds, eref, th12_degs, th32_deg_comms, E_L3_ref, data2adjust  in zip(['GBNG', 'BNGNB', 'BNGBN'],
                             axRs, 
                             ['o','^','s'],
                             ["$\\overline{\\text{AAC}}$", "$\\overline{\\rm \\text{A}^{\\prime}\\text{AA}}$", "$\\overline{\\text{AAC}}$"],
@@ -115,17 +120,58 @@ for stype, ax, mtype, stack_name, spl_inds, eref, th12_degs  in zip(['GBNG', 'BN
                             erefs,
                             [[0.601428, 1.276839, 1.782679],
                              [0.537754, 1.080027, 1.622768],
-                             [0.537754, 1.080027, 1.622768]]
-                                  ):
-    for th12_deg, mcolor, spl_ind in zip(th12_degs,
+                             [0.537754, 1.080027, 1.622768]],
+                            [[0.601428, 1.276839, 1.782679],
+                             [0.537754, 1.080027, 1.622768],
+                             [0.537754, 1.080027, 1.622768]],
+                             E_L3_refs,
+                             data2adjusts
+                            ):
+    
+    vals = np.genfromtxt(f"{datadir2}energycurve_{stype}.dat", skip_header=1)
+
+    for th12_deg, th32_deg_comm, mcolor, spl_ind in zip(th12_degs,th32_deg_comms,
                                 ['C0', 'C1', 'C2'],
                                 spl_inds):
-        val = np.genfromtxt(f"{datadir2}energycurve_{stype}_{th12_deg:.2f}.dat", skip_header=1)
-        ang32_degs, etots = val[:,1], val[:,2]
+
+        # --- Selects the specific \theta_{12}  
+        cond = vals[:,0] == th12_deg 
+        val  = vals[cond,:].copy()
+        if np.sum(cond)==0: continue  # Just in case that no one is selected.
+
+        ang12_degs, ang32_degs = val[:,0], val[:,1] 
+
+        # ---------------------------------------------------
+        # --- Just to ensure to use the corresponding Hermann indices
+        data4corr0 = data2adjust[data2adjust[:,0]==th12_deg,:] 
+        data4corr  = []
+        for ang12, ang32 in zip(ang12_degs, ang32_degs):
+            cond2check = np.logical_and( np.isclose( data4corr0[:,0], ang12, atol=1e-4),
+                                         np.isclose( data4corr0[:,1], ang32, atol=1e-4) )
+            if np.sum(cond2check) == 1:
+                data4corr.append(data4corr0[cond2check,:].squeeze(axis=0))
+        data4corr = np.array(data4corr) #;  print("data4corr.shape",data4corr.shape)
+
+        # --- Number-of-atom correction
+        app, bpp          = data4corr[:,2], data4corr[:,3]
+        Natom_L3          = 2*(app**2 + app*bpp + bpp**2)
+        Natom_L3_ref      = Natom_L3[data4corr[:,1]==th32_deg_comm] 
+        lambda_ratio      = data4corr[:,-1]  # ratio between the simulation cell length with respect to their reference (double-moire commensurate)
+        Natom_corr        = (lambda_ratio**2) * Natom_L3_ref - Natom_L3
+        # print(f"Natom_corr  =  (lambda/lambda^comm.)^2 * Natom_L3_ref - Natom_L3 ", f"ref angle = {data4corr[data4corr[:,1]==th32_deg_comm, 0]}")
         
-        ax.plot(ang32_degs, (etots-eref)*1000,f'{mtype}',ms= msize, 
-                color=mcolor, lw=0.5, 
-                label="$\\theta_{12} = "+f"{th12_deg:.2f}"+"^{\\circ}$ - "+f"{stack_name}")
+        # --- Energy correction
+        E_corr  = Natom_corr  * E_L3_ref 
+
+        # --- Total energy per atom with Correction
+        etots_wocorr = (val[:,-1])/(val[:,-3])
+        etots        = (val[:,-1]+E_corr)/(val[:,-3]+Natom_corr)
+        # ---------------------------------------------------
+
+        # ax.plot(ang32_degs, (etots_wocorr-eref)*1000,'*', ms= msize, color=mcolor, alpha=0.5)# label="$\\theta_{12} = "+f"{th12_deg:.2f}"+"^{\\circ}$ - "+f"{stack_name}")
+        ax.plot(ang32_degs, (etots-eref)*1000,'-', ms= msize, marker=mtype, color=mcolor, lw=0.5, label="$\\theta_{12} = "+f"{th12_deg:.2f}"+"^{\\circ}$ - "+f"{stack_name}")
+
+
 
         ind   = list(ang32_degs).index(th12_deg)
         if th12_deg < 0.8:
@@ -161,8 +207,8 @@ for stype, ax, mtype, stack_name, spl_inds, eref, th12_degs  in zip(['GBNG', 'BN
         ax.plot(theta1,(pLR(theta1)-eref)*1000,":",color=mcolor,linewidth=0.9)
         ax.plot(theta2,(pLR(theta2)-eref)*1000,"--",color=mcolor,linewidth=0.9)
 
-        ax.fill_between(theta1[theta1<th12_deg], (pL(theta1[theta1<th12_deg])-eref)*1000, (pLR(theta1[theta1<th12_deg])-eref)*1000 , color=mcolor, alpha=0.3)  # ax.fill_betweenx(y, x1, x2, color='k', alpha=0.3)
-        ax.fill_between(theta1[theta1>=th12_deg], (pR(theta1[theta1>=th12_deg])-eref)*1000, (pLR(theta1[theta1>=th12_deg])-eref)*1000 , color=mcolor, alpha=0.3)  # ax.fill_betweenx(y, x1, x2, color='k', alpha=0.3)
+        pLR0_val = np.hstack((pL(theta1[theta1<th12_deg]), pR(theta1[theta1>=th12_deg])))#; print(pLR0_val.shape, theta1.shape)
+        ax.fill_between(theta1, (pLR0_val-eref)*1000, (pLR(theta1)-eref)*1000 , color=mcolor, alpha=0.3)  # ax.fill_betweenx(y, x1, x2, color='k', alpha=0.3)
 
 
         spl    = splrep(theta2,pLR(theta2))
@@ -203,4 +249,3 @@ for stype, ax, mtype, stack_name, spl_inds, eref, th12_degs  in zip(['GBNG', 'BN
 
 
 fig.savefig(f"{datadir}fig3_0.pdf")
-fig.savefig(f"{datadir}fig3_0.png",dpi=300 )
